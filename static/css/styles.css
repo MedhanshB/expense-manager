@@ -1,0 +1,217 @@
+/* =========================================
+   DESIGN SYSTEM
+   Expense Manager
+========================================= */
+
+:root {
+
+    /* ========= Brand Colors ========= */
+
+    --color-primary: #16A34A;      /* Emerald Green */
+    --color-primary-hover: #15803D;
+
+    --color-accent: #1E293B;       /* Navy */
+
+    /* ========= Background ========= */
+
+    --color-background: #F8FAFC;
+    --color-surface: #FFFFFF;
+
+    /* ========= Text ========= */
+
+    --color-text: #1F2937;
+    --color-text-light: #6B7280;
+    --color-heading: #111827;
+
+    /* ========= Borders ========= */
+
+    --color-border: #E5E7EB;
+
+    /* ========= Status ========= */
+
+    --color-success: #16A34A;
+    --color-danger: #DC2626;
+    --color-warning: #F59E0B;
+    --color-info: #2563EB;
+
+    /* ========= Shadows ========= */
+
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+
+    /* ========= Border Radius ========= */
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+
+    /* ========= Typography ========= */
+
+    --font-family: "Inter", sans-serif;
+
+    --font-xs: 12px;
+    --font-sm: 14px;
+    --font-md: 16px;
+    --font-lg: 18px;
+    --font-xl: 24px;
+    --font-xxl: 32px;
+
+    /* ========= Font Weight ========= */
+
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    /* ========= Layout ========= */
+
+    --navbar-height: 72px;
+
+    --container-width: 1200px;
+
+    --transition: all 0.25s ease;
+
+}
+
+/* =========================================
+   GLOBAL STYLES
+========================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+
+    font-family: var(--font-family);
+
+    background: var(--color-background);
+
+    color: var(--color-text);
+
+    font-size: var(--font-md);
+
+    line-height: 1.6;
+}
+
+main {
+    padding: 2rem 0;
+}
+
+a {
+
+    color: inherit;
+
+    text-decoration: none;
+
+    transition: var(--transition);
+
+}
+
+img {
+
+    max-width: 100%;
+
+}
+
+h1 {
+
+    font-size: var(--font-xxl);
+
+    font-weight: var(--weight-bold);
+
+    color: var(--color-heading);
+
+}
+
+h2 {
+
+    font-size: var(--font-xl);
+
+    font-weight: var(--weight-semibold);
+
+}
+
+h3 {
+
+    font-size: var(--font-lg);
+
+    font-weight: var(--weight-semibold);
+
+}
+
+/* =========================================
+   NAVBAR
+========================================= */
+
+.navbar {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    min-height: var(--navbar-height);
+    padding: 0.75rem 0;
+}
+
+/* Brand */
+
+.navbar-brand {
+    font-size: var(--font-xl);
+    font-weight: var(--weight-bold);
+    color: var(--color-accent);
+    letter-spacing: -0.5px;
+}
+
+
+.navbar-brand:hover {
+    color: var(--color-primary);
+}
+
+/* Navigation Links */
+
+.navbar-nav .nav-link {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+    margin: 0 0.4rem;
+    transition: var(--transition);
+}
+
+.navbar-nav .nav-link:hover {
+    color: var(--color-primary);
+}
+
+/* Active Page */
+
+.navbar-nav .nav-link.active {
+    color: var(--color-primary);
+    font-weight: var(--weight-semibold);
+}
+
+/* Username */
+
+.navbar-text {
+    color: var(--color-text-light);
+    font-weight: var(--weight-medium);
+}
+
+/* =========================================
+   FOOTER
+========================================= */
+
+.footer {
+    margin-top: 4rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+}
+
+.footer p {
+    margin: 0;
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+}
+
+.footer small {
+    color: var(--color-text-light);
+}
