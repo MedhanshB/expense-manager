@@ -195,6 +195,10 @@ h3 {
     font-weight: var(--weight-medium);
 }
 
+.brand-highlight {
+    color: var(--color-primary);
+}
+
 /* =========================================
    FOOTER
 ========================================= */
@@ -214,4 +218,28 @@ h3 {
 
 .footer small {
     color: var(--color-text-light);
+}
+
+/* =========================================
+   Register Page
+========================================= */
+.btn-primary {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
+.form-card {
+    max-width: 450px;
+    margin: 4rem auto;
 }

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}
+Register
+{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <h2>Create an Account</h2>
+    <form method="post">
+        <label for="username" class="col-form-label" for="autoSizingInputGroup">Username</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="autoSizingInputGroup" name="username">
+        </div>
+
+        <label for="password" class="col-form-label">Password</label>
+
+        <input type="password" id="password" name="password" class="form-control" aria-describedby="password-help">
+
+
+        <p class="form-text mt-1">
+            Must be 8-20 characters long.
+        </p>
+
+        <label for="confirm_password" class="col-form-label">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" class="form-control"
+            aria-describedby="confirm-password-help">
+
+
+        <p class="form-text mt-1">
+            Must match the password.
+        </p>
+
+
+        <button type="submit" class="btn btn-primary mb-3">Register</button>
+
+        <p class="form-text mt-3">
+            Already have an account?
+            <a href="{{ url_for('login') }}">Login</a>
+        </p>
+    </form>
+
+</div>
+
+
+{% endblock %}
