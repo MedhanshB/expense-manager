@@ -25,8 +25,20 @@ app.jinja_env.filters["inr"] = inr
 
 
 @app.route("/")
+@login_required
 def index():
-    return render_template("base.html")
+
+    user_id = session["user_id"]
+
+    db = get_db()
+
+    cursor = db.execute("SELECT * FROM users WHERE id=?", (user_id,))
+
+    data = cursor.fetchone
+
+    return render_template("index.html")
+
+    
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -79,8 +91,48 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # no caching forget any user id 
+    session.clear()
+
     if request.method == "POST":
-        return redirect("/")
+        username = request.form.get("username")
+        if not username:
+            flash("must provide username","danger")
+            return redirect(url_for("login"))
+        password = request.form.get("password")
+        if not password:
+            flash("must provide password","danger")
+            return redirect(url_for("login"))
+
+        db = get_db()
+
+        cursor_user = db.execute("SELECT * FROM users WHERE username = ?", (username,))
+
+        user = cursor_user.fetchone()
+        if not user or not check_password_hash(user["password_hash"], password):
+            flash("Invalid username or password","danger")
+            return redirect(url_for("login"))
+
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+
+        db.close()
+
+        flash("Welcome back!", "success")
+        return redirect(url_for("index"))
+        
     
     else:
         return render_template("login.html")
+    
+
+@app.route("/logout")
+def logout():
+    """Log user out"""
+
+    # Forget any user_id
+    session.clear()
+
+    flash("Logged out!", "info")
+    # Redirect user to login form
+    return redirect(url_for("login"))

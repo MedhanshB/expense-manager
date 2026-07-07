@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}
+Dashboard
+{% endblock %}
+
+{% block content %}
+<h3>Welcome back, {{ session["username"] }}!</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Balance</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Amount</td>
+        </tr>
+    </tbody>
+</table>
+
+
+
+{% endblock %}
