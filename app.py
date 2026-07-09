@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, session, flash, redirect, url_for
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
-
+from datetime import date
+from decimal import Decimal, InvalidOperation
 from helpers import get_db, login_required, inr
 
 app = Flask(__name__)
@@ -10,6 +11,8 @@ app.config["SECRET_KEY"] = "development-key"   # replace later with an environme
 
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+
+MAX_TRANSACTION_AMOUNT = Decimal("10000000")
 
 Session(app)
 
@@ -22,6 +25,7 @@ def after_request(response):
     return response
 
 app.jinja_env.filters["inr"] = inr
+
 
 
 @app.route("/")
@@ -136,3 +140,126 @@ def logout():
     flash("Logged out!", "info")
     # Redirect user to login form
     return redirect(url_for("login"))
+
+
+@app.route("/transactions")
+@login_required
+def transactions():
+    user_id = session["user_id"]
+
+    db = get_db()
+
+    cursor = db.execute(
+    """
+    SELECT
+        categories.name,
+        transactions.amount,
+        transactions.description,
+        transactions.transaction_date
+    FROM transactions
+    INNER JOIN categories
+        ON transactions.category_id = categories.id
+    WHERE transactions.user_id = ?
+    ORDER BY transactions.transaction_date DESC
+    """, (user_id,))
+
+    transactions_data = cursor.fetchall()
+
+
+
+    return render_template("transactions.html", transactions_data = transactions_data)
+
+
+@app.route("/transactions/add", methods=["GET", "POST"])
+@login_required
+def add_transaction():
+
+    user_id = session["user_id"]
+
+    db = get_db()
+
+    cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
+
+    categories = cursor.fetchall()
+
+    db.close()
+
+    today = date.today().isoformat()
+
+
+    if request.method == "POST":
+        category = request.form.get("category")
+        if not category:
+            flash("Please select a category","danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+
+        amount = request.form.get("amount","").strip()
+        if not amount:
+            flash("Please enter an amount","danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        try:
+            amount = Decimal(amount)
+        except InvalidOperation:
+            flash("Enter a valid amount","danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        
+        exponent = amount.as_tuple().exponent
+
+        if exponent < -2:
+            flash("Amount can have at most two decimal places", "danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+
+        if amount <= 0:
+            flash("Enter a valid amount","danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        
+        if amount > MAX_TRANSACTION_AMOUNT:
+            flash("Amount seems unreasonably large", "danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        
+        description = request.form.get("description","").strip()
+        if not description:
+            flash("Please enter a description","danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        
+        transaction_date = request.form.get("date", "")
+        try:
+            date.fromisoformat(transaction_date)
+        except (ValueError, TypeError):
+            flash("Enter a valid date", "danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        
+        amount = amount * 100
+        amount = int(amount)
+
+        try:
+            category = int(category)
+        except ValueError:
+            flash("Invalid category","danger")
+            return render_template("add_transaction.html", categories = categories, today = today)
+
+        db = get_db()
+        cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
+        category_row = cursor.fetchone()
+        if not category_row:
+            db.close()
+            flash("Not a valid category","info")
+            return render_template("add_transaction.html", categories = categories, today = today)
+        
+ 
+        
+        db.execute("INSERT INTO transactions (user_id, category_id,amount,description,transaction_date) VALUES(?, ?, ?, ?, ?)", 
+                   (user_id, category, amount, description, transaction_date))
+        
+        db.commit()
+
+        db.close()
+
+        flash("Transaction saved successfully","success")
+        
+        return redirect(url_for("transactions"))
+
+
+    else:
+
+        return render_template("add_transaction.html", categories=categories, today=today)

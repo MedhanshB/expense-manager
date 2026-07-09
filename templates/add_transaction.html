@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}
+Add Transaction
+{% endblock %}
+
+{% block content %}
+
+<div class="form-card">
+    <h2>Add Transaction</h2>
+    <form method="post">
+        <!-- improve on this later on as the app comes to a finish so you can display income and expense in a separte optselect something -->
+        <label for="category" class="col-form-label">Category</label>
+        <select name="category" class="form-select">
+            <option value="" selected disabled>Select Category</option>
+            {% for category in categories %}
+            <option value="{{ category['id'] }}" {% if request.form.get('category')==category['id']|string %} selected
+                {% endif %}>
+                {{ category["name"] }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label for="amount" class="col-form-label">Amount</label>
+        <input type="number" name="amount" class="form-control" min="0.01" step="0.01"
+            value="{{ request.form.get('amount', '') }}" placeholder="0.00" required>
+
+        <label for="description" class="col-form-label">Description</label>
+        <textarea name="description" class="form-control" rows="2"
+            required>{{ request.form.get("description", "") }}</textarea>
+
+        <label for="date" class="col-form-label">Date</label>
+        <input type="date" name="date" class="form-control" value="{{ request.form.get('date', today) }}" required>
+
+        <button type="submit" class="btn btn-primary mt-3">Save Transaction</button>
+
+    </form>
+
+
+</div>
+
+
+{% endblock %}
