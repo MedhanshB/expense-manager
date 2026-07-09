@@ -152,6 +152,7 @@ def transactions():
     cursor = db.execute(
     """
     SELECT
+        transactions.id,
         categories.name,
         transactions.amount,
         transactions.description,
@@ -263,3 +264,125 @@ def add_transaction():
     else:
 
         return render_template("add_transaction.html", categories=categories, today=today)
+    
+
+@app.route("/transactions/<int:transaction_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_transaction(transaction_id):
+
+    user_id = session["user_id"]
+
+    if request.method == "POST":
+        category = request.form.get("category")
+        if not category:
+            flash("Please select a category","danger")
+            return render_template("add_transaction.html", categories = categories)
+
+        amount = request.form.get("amount","").strip()
+        if not amount:
+            flash("Please enter an amount","danger")
+            return render_template("add_transaction.html", categories = categories)
+        try:
+            amount = Decimal(amount)
+        except InvalidOperation:
+            flash("Enter a valid amount","danger")
+            return render_template("add_transaction.html", categories = categories)
+        
+        exponent = amount.as_tuple().exponent
+
+        if exponent < -2:
+            flash("Amount can have at most two decimal places", "danger")
+            return render_template("add_transaction.html", categories = categories)
+
+        if amount <= 0:
+            flash("Enter a valid amount","danger")
+            return render_template("add_transaction.html", categories = categories)
+        
+        if amount > MAX_TRANSACTION_AMOUNT:
+            flash("Amount seems unreasonably large", "danger")
+            return render_template("add_transaction.html", categories = categories)
+        
+        description = request.form.get("description","").strip()
+        if not description:
+            flash("Please enter a description","danger")
+            return render_template("add_transaction.html", categories = categories)
+        
+        transaction_date = request.form.get("date", "")
+        try:
+            date.fromisoformat(transaction_date)
+        except (ValueError, TypeError):
+            flash("Enter a valid date", "danger")
+            return render_template("add_transaction.html", categories = categories)
+        
+        amount = amount * 100
+        amount = int(amount)
+
+        try:
+            category = int(category)
+        except ValueError:
+            flash("Invalid category","danger")
+            return render_template("add_transaction.html", categories = categories)
+
+        db = get_db()
+        cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
+        category_row = cursor.fetchone()
+        if not category_row:
+            db.close()
+            flash("Not a valid category","info")
+            return render_template("add_transaction.html", categories = categories)
+        
+ 
+        
+        cursor_2 = db.execute("UPDATE transactions SET category_id = ?, amount = ?, description = ?, transaction_date = ? WHERE transactions.id = ? AND transactions.user_id=?", 
+                   (category, amount, description, transaction_date, transaction_id, user_id))
+        
+        if cursor_2.rowcount == 0:
+            db.rollback()
+            db.close()
+            flash("Transaction not found.", "danger")
+            return redirect(url_for("transactions"))
+        
+        db.commit()
+
+        db.close()
+
+        flash("Transaction updated","success")
+        
+        return redirect(url_for("transactions"))
+    
+    else:
+        
+        db = get_db()
+
+        cursor = db.execute(
+        """
+        SELECT
+            transactions.category_id,
+            categories.name,
+            transactions.amount,
+            transactions.description,
+            transactions.transaction_date
+        FROM transactions
+        INNER JOIN categories
+            ON transactions.category_id = categories.id
+        WHERE transactions.id = ? AND transactions.user_id = ?
+        """, (transaction_id, user_id))
+
+        transaction = cursor.fetchone()
+        
+        if not transaction:
+            db.close()
+            flash("No transaction exists","danger")
+            return redirect(url_for("transactions"))
+        
+        transaction = dict(transaction)
+        
+        transaction["amount"] = Decimal(transaction["amount"]) / 100
+
+        cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
+
+        categories = cursor.fetchall()
+
+        db.close()
+
+        return render_template("edit_transaction.html", transaction = transaction, categories = categories)

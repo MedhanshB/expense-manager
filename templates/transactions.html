@@ -13,6 +13,7 @@ Transactions
             <th>Category</th>
             <th>Description</th>
             <th>Amount</th>
+            <th></th>
         </tr>
     </thead>
 
@@ -24,6 +25,11 @@ Transactions
             <td>{{ transaction["name"] }}</td>
             <td>{{ transaction["description"] }}</td>
             <td>{{ transaction["amount"] | inr }}</td>
+            <td>
+                <a href="{{ url_for('edit_transaction', transaction_id=transaction['id']) }}" class="btn btn-sm btn-primary">
+                    Edit Transaction
+                </a>
+            </td>
         </tr>
         {% endfor %}
         {% else %}
