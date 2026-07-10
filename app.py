@@ -386,3 +386,28 @@ def edit_transaction(transaction_id):
         db.close()
 
         return render_template("edit_transaction.html", transaction = transaction, categories = categories)
+    
+
+@app.route("/transactions/<int:transaction_id>/delete", methods=["POST"])
+@login_required
+def delete_transaction(transaction_id):
+    user_id = session["user_id"]
+
+    db = get_db()
+
+    cursor = db.execute(
+        "DELETE FROM transactions WHERE transactions.user_id = ? AND transactions.id = ?",
+        (user_id, transaction_id))
+
+    if cursor.rowcount == 0:
+            db.rollback()
+            db.close()
+            flash("Transaction not found.", "danger")
+            return redirect(url_for("transactions"))
+
+    db.commit()
+
+    db.close()
+
+    flash("Transaction deleted successfully.","success")
+    return redirect(url_for("transactions"))
