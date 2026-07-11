@@ -1,6 +1,7 @@
 import sqlite3
 from flask import session, redirect
 from functools import wraps
+from datetime import datetime
 
 def get_db():
     conn = sqlite3.connect("expense_manager.db")
@@ -27,3 +28,8 @@ def login_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+def short_date(date):
+    short = datetime.strptime(date, "%Y-%m-%d")
+    short_date = short.strftime("%d %b")
+    return short_date

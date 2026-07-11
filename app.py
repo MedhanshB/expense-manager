@@ -3,7 +3,7 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from helpers import get_db, login_required, inr
+from helpers import get_db, login_required, inr, short_date
 
 app = Flask(__name__)
 
@@ -25,6 +25,7 @@ def after_request(response):
     return response
 
 app.jinja_env.filters["inr"] = inr
+app.jinja_env.filters["short_date"] = short_date
 
 
 
@@ -36,11 +37,109 @@ def index():
 
     db = get_db()
 
-    cursor = db.execute("SELECT * FROM users WHERE id=?", (user_id,))
+    # cursor = db.execute(
+    # """
+    # SELECT
+    #     transactions.amount,
+    #     categories.type
+    # FROM transactions
+    # INNER JOIN categories
+    #     ON transactions.category_id = categories.id
+    # WHERE transactions.user_id = ?
+    # """,
+    # (user_id,)
+    # )
 
-    data = cursor.fetchone
+    # transactions = cursor.fetchall()
 
-    return render_template("index.html")
+        # cursor = db.execute(
+    # """
+    # SELECT SUM(transactions.amount) AS total_income
+    # FROM transactions 
+    # INNER JOIN categories 
+    #     ON transactions.category_id = categories.id
+    # WHERE 
+    #     transactions.user_id = ? 
+    #     AND categories.type = ?
+    # """,
+    # (user_id,'Income')
+    # )
+    
+    # row = cursor.fetchone()
+    # user_income = row["total_income"]
+
+    # cursor = db.execute(
+    # """
+    # SELECT SUM(transactions.amount) AS total_expense
+    # FROM transactions 
+    # INNER JOIN categories 
+    #     ON transactions.category_id = categories.id
+    # WHERE 
+    #     transactions.user_id = ? 
+    #     AND categories.type = ?
+    # """,
+    # (user_id,'Expense')
+    # )
+
+    # row2 = cursor.fetchone()
+    # user_expense = row2["total_expense"]
+
+    # for transaction in transactions:
+    #     if transaction["type"] == "Income":
+    #         user_income += transaction["amount"]
+    #     else:
+    #         user_expense += transaction["amount"]
+
+    cursor = db.execute(
+    """
+    SELECT categories.type,
+        SUM(transactions.amount) AS total
+    FROM transactions
+    INNER JOIN categories
+        ON transactions.category_id = categories.id
+    WHERE
+        transactions.user_id = ? 
+    GROUP BY categories.type
+    """,
+    (user_id,)
+    )
+
+    balance = cursor.fetchall()
+
+    user_income = 0
+    user_expense = 0
+
+    for balances in balance:
+        if balances["type"] == "Income":
+            user_income = balances["total"]
+        elif balances["type"] == "Expense":
+            user_expense = balances["total"]
+
+    user_balance = user_income - user_expense
+
+    cursor = db.execute(
+    """
+    SELECT
+        transactions.id,
+        categories.name,
+        categories.type,
+        transactions.amount,
+        transactions.description,
+        transactions.transaction_date
+    FROM transactions
+    INNER JOIN categories
+        ON transactions.category_id = categories.id
+    WHERE transactions.user_id = ?
+    ORDER BY transactions.transaction_date DESC, transactions.id DESC
+    LIMIT 10
+    """, (user_id,))
+
+    transactions = cursor.fetchall()
+
+
+
+    return render_template("index.html", balance = user_balance, income = user_income, expense = user_expense, 
+                           transactions = transactions)
 
     
 
