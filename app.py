@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, session, flash, redirect, url_for
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from helpers import get_db, login_required, inr, short_date
 
@@ -375,43 +375,43 @@ def edit_transaction(transaction_id):
         category = request.form.get("category")
         if not category:
             flash("Please select a category","danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
 
         amount = request.form.get("amount","").strip()
         if not amount:
             flash("Please enter an amount","danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         try:
             amount = Decimal(amount)
         except InvalidOperation:
             flash("Enter a valid amount","danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         
         exponent = amount.as_tuple().exponent
 
         if exponent < -2:
             flash("Amount can have at most two decimal places", "danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
 
         if amount <= 0:
             flash("Enter a valid amount","danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         
         if amount > MAX_TRANSACTION_AMOUNT:
             flash("Amount seems unreasonably large", "danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         
         description = request.form.get("description","").strip()
         if not description:
             flash("Please enter a description","danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         
         transaction_date = request.form.get("date", "")
         try:
             date.fromisoformat(transaction_date)
         except (ValueError, TypeError):
             flash("Enter a valid date", "danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         
         amount = amount * 100
         amount = int(amount)
@@ -420,7 +420,7 @@ def edit_transaction(transaction_id):
             category = int(category)
         except ValueError:
             flash("Invalid category","danger")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
 
         db = get_db()
         cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
@@ -428,7 +428,7 @@ def edit_transaction(transaction_id):
         if not category_row:
             db.close()
             flash("Not a valid category","info")
-            return render_template("add_transaction.html", categories = categories)
+            return render_template("edit_transaction.html", categories = categories)
         
  
         
@@ -510,3 +510,287 @@ def delete_transaction(transaction_id):
 
     flash("Transaction deleted successfully.","success")
     return redirect(url_for("transactions"))
+
+
+@app.route("/budgets")
+@login_required
+def budgets():
+    user_id = session["user_id"]
+
+    db = get_db()
+
+    cursor = db.execute(
+        """
+        SELECT
+            budgets.id,
+            budgets.category_id,
+            budgets.budget_amount,
+            budgets.budget_period,
+            categories.name
+        FROM budgets
+        INNER JOIN categories
+            ON budgets.category_id = categories.id
+        WHERE budgets.user_id = ?
+        """,
+        (user_id,))
+    
+    budgets_data = cursor.fetchall()
+
+    cursor2 = db.execute(
+        """
+        SELECT 
+            categories.id AS category_id,
+        SUM (transactions.amount) as total
+        FROM transactions
+        INNER JOIN categories
+            ON transactions.category_id = categories.id
+        WHERE transactions.user_id = ? AND categories.type = ?
+        GROUP BY categories.id
+        """,
+        (user_id, "Expense"))
+    
+    transactions_data = cursor2.fetchall()
+
+    spent = {}
+
+    budget_summary = []
+
+    for transaction in transactions_data:
+        spent[transaction["category_id"]] = transaction["total"]
+
+    for budget in budgets_data:
+        spent_amount = spent.get(budget["category_id"], 0)
+        remaining_amount = budget["budget_amount"] - spent_amount
+        progress = spent_amount/budget["budget_amount"] * 100
+
+        budget_summary.append({
+            "id":budget["id"],
+            "name": budget["name"],
+            "budget_amount": budget["budget_amount"],
+            "spent": spent_amount,
+            "remaining": remaining_amount,
+            "progress": progress
+        })
+
+
+    return render_template("budgets.html", budget_data = budget_summary)
+
+        
+
+    
+
+@app.route("/budgets/add", methods=["GET", "POST"])
+@login_required
+def add_budget():
+
+    user_id = session["user_id"]
+
+    budget_period = datetime.now().strftime("%Y-%m")
+
+    db = get_db()
+
+    cursor = db.execute("SELECT id,name FROM categories WHERE type = ? ORDER BY name", ("Expense",))
+
+    categories = cursor.fetchall()
+
+    db.close()
+
+    if request.method == "POST":
+        category = request.form.get("category")
+        if not category:
+            flash("Please select a category","danger")
+            return render_template("add_budget.html", categories = categories)
+
+        budget = request.form.get("budget","").strip()
+        if not budget:
+            flash("Please enter an budget","danger")
+            return render_template("add_budget.html", categories = categories)
+        try:
+            budget = Decimal(budget)
+        except InvalidOperation:
+            flash("Enter a valid budget","danger")
+            return render_template("add_budget.html", categories = categories)
+        
+        exponent = budget.as_tuple().exponent
+
+        if exponent < -2:
+            flash("Amount can have at most two decimal places", "danger")
+            return render_template("add_budget.html", categories = categories)
+
+        if budget <= 0:
+            flash("Enter a valid budget","danger")
+            return render_template("add_budget.html", categories = categories)
+        
+        if budget > MAX_TRANSACTION_AMOUNT:
+            flash("Amount seems unreasonably large", "danger")
+            return render_template("add_budget.html", categories = categories)
+        
+        budget = budget * 100
+        budget = int(budget)
+
+        try:
+            category = int(category)
+        except ValueError:
+            flash("Invalid category","danger")
+            return render_template("add_budget.html", categories = categories)
+
+        db = get_db()
+        cursor = db.execute("SELECT id FROM categories WHERE id=? and type = ?",(category,"Expense"))
+        category_row = cursor.fetchone()
+        if not category_row:
+            db.close()
+            flash("Not a valid category","info")
+            return render_template("add_budget.html", categories = categories)
+
+        
+        cursor = db.execute(
+            """
+            INSERT INTO budgets (user_id, category_id, budget_amount, budget_period) VALUES (?, ?, ?, ?)
+            """,
+            (user_id, category, budget, budget_period)
+        )
+
+        db.commit()
+
+        db.close()
+         
+        return redirect(url_for("budgets"))
+        
+
+    else:
+
+        return render_template("add_budget.html", categories=categories)
+
+
+
+@app.route("/budgets/<int:budget_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_budget(budget_id):
+
+    user_id = session["user_id"]
+
+    if request.method == "POST":
+        category = request.form.get("category")
+        if not category:
+            flash("Please select a category","danger")
+            return render_template("edit_budget.html", categories = categories)
+
+        budget = request.form.get("budget","").strip()
+        if not budget:
+            flash("Please enter an budget","danger")
+            return render_template("edit_budget.html", categories = categories)
+        try:
+            budget = Decimal(budget)
+        except InvalidOperation:
+            flash("Enter a valid budget","danger")
+            return render_template("edit_budget.html", categories = categories)
+        
+        exponent = budget.as_tuple().exponent
+
+        if exponent < -2:
+            flash("Amount can have at most two decimal places", "danger")
+            return render_template("edit_budget.html", categories = categories)
+
+        if budget <= 0:
+            flash("Enter a valid budget","danger")
+            return render_template("edit_budget.html", categories = categories)
+        
+        if budget > MAX_TRANSACTION_AMOUNT:
+            flash("Amount seems unreasonably large", "danger")
+            return render_template("edit_budget.html", categories = categories)
+        
+        budget = budget * 100
+        budget = int(budget)
+
+        try:
+            category = int(category)
+        except ValueError:
+            flash("Invalid category","danger")
+            return render_template("edit_budget.html", categories = categories)
+
+        db = get_db()
+        cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
+        category_row = cursor.fetchone()
+        if not category_row:
+            db.close()
+            flash("Not a valid category","info")
+            return render_template("edit_budget.html", categories = categories)
+        
+ 
+        
+        cursor_2 = db.execute("UPDATE budgets SET category_id = ?, budget_amount = ? WHERE budget.id = ? AND budget.user_id=?", 
+                   (category, budget, budget_id, user_id))
+        
+        if cursor_2.rowcount == 0:
+            db.rollback()
+            db.close()
+            flash("Budget not found.", "danger")
+            return redirect(url_for("budgets"))
+        
+        db.commit()
+
+        db.close()
+
+        flash("Budget updated","success")
+        
+        return redirect(url_for("budgets"))
+    
+    else:
+        
+        db = get_db()
+
+        cursor = db.execute(
+        """
+        SELECT
+            budgets.category_id,
+            categories.name,
+            budgets.budget_amount,
+        FROM budgets
+        INNER JOIN categories
+            ON budgets.category_id = categories.id
+        WHERE budgets.id = ? AND budgets.user_id = ?
+        """, (budget_id, user_id))
+
+        budgets = cursor.fetchone()
+        
+        if not budgets:
+            db.close()
+            flash("No budget exists","danger")
+            return redirect(url_for("budgets"))
+        
+        budgets = dict(budgets)
+        
+        budgets["amount"] = Decimal(budgets["amount"]) / 100
+
+        cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
+
+        categories = cursor.fetchall()
+
+        db.close()
+
+        return render_template("edit_budget.html", budgets = budgets, categories = categories)
+
+
+@app.route("/budgets/<int:budget_id>/delete", methods=["POST"])
+@login_required
+def delete_budget(budget_id):
+    user_id = session["user_id"]
+
+    db = get_db()
+
+    cursor = db.execute(
+        "DELETE FROM budgets WHERE budgets.user_id = ? AND budgets.id = ?",
+        (user_id, budget_id))
+
+    if cursor.rowcount == 0:
+            db.rollback()
+            db.close()
+            flash("Budget not found.", "danger")
+            return redirect(url_for("budgets"))
+
+    db.commit()
+
+    db.close()
+
+    flash("Budget deleted successfully.","success")
+    return redirect(url_for("budgets"))

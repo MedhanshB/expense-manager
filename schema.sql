@@ -27,11 +27,11 @@ CREATE TABLE budgets (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
     category_id INTEGER NOT NULL,
-    amount INTEGER NOT NULL,
-    budget_month TEXT NOT NULL,
+    budget_amount INTEGER NOT NULL,
+    budget_period TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (category_id) REFERENCES categories(id),
-    UNIQUE (user_id, category_id, budget_month)
+    UNIQUE (user_id, category_id, budget_period)
 );
 
 INSERT INTO categories (name, type) VALUES

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}
+Add Budget
+{% endblock %}
+
+{% block content %}
+
+<div class="form-card">
+    <h2>Add Budget</h2>
+    <form method="post">
+        <!-- improve on this later on as the app comes to a finish so you can display income and expense in a separte optselect something -->
+        <label for="category" class="col-form-label">Category</label>
+        <select name="category" class="form-select">
+            <option value="" selected disabled>Select Category</option>
+            {% for category in categories %}
+            <option value="{{ category['id'] }}" {% if request.form.get('category')==category['id']|string %} selected
+                {% endif %}>
+                {{ category["name"] }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label for="budget" class="col-form-label">Montly Budget</label>
+        <input type="number" name="budget" class="form-control" min="0.01" step="0.01"
+            value="{{ request.form.get('budget', '') }}" placeholder="0.00" required>
+
+        <button type="submit" class="btn btn-primary mt-3">Save Budget</button>
+
+    </form>
+
+</div>
+
+
+{% endblock %}
