@@ -100,14 +100,23 @@ Completed:
 
 - Project setup
 - SQLite database schema
-- Base application layout
+- User authentication
+- Session management
+- Dashboard
+- Transactions CRUD
+- Categories management
+- Budgets CRUD
+- SQL aggregation and reporting
+- Custom Jinja filters
+- Reusable helper functions
 - Responsive navigation
 - Flash messaging
-- Design system
+- Bootstrap-based user interface
 
 Currently working on:
 
-- User authentication
+- Final testing and documentation
+- CS50 project submission
 
 ---
 
