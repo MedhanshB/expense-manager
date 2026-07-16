@@ -3,7 +3,7 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from helpers import get_db, login_required, inr, short_date
+from helpers import get_db, login_required, inr, short_date, get_budget_summary
 
 app = Flask(__name__)
 
@@ -136,10 +136,11 @@ def index():
 
     transactions = cursor.fetchall()
 
+    budget_summary = get_budget_summary(user_id)
 
 
     return render_template("index.html", balance = user_balance, income = user_income, expense = user_expense, 
-                           transactions = transactions)
+                           transactions = transactions, budgets = budget_summary)
 
     
 
@@ -519,58 +520,7 @@ def budgets():
 
     db = get_db()
 
-    cursor = db.execute(
-        """
-        SELECT
-            budgets.id,
-            budgets.category_id,
-            budgets.budget_amount,
-            budgets.budget_period,
-            categories.name
-        FROM budgets
-        INNER JOIN categories
-            ON budgets.category_id = categories.id
-        WHERE budgets.user_id = ?
-        """,
-        (user_id,))
-    
-    budgets_data = cursor.fetchall()
-
-    cursor2 = db.execute(
-        """
-        SELECT 
-            categories.id AS category_id,
-        SUM (transactions.amount) as total
-        FROM transactions
-        INNER JOIN categories
-            ON transactions.category_id = categories.id
-        WHERE transactions.user_id = ? AND categories.type = ?
-        GROUP BY categories.id
-        """,
-        (user_id, "Expense"))
-    
-    transactions_data = cursor2.fetchall()
-
-    spent = {}
-
-    budget_summary = []
-
-    for transaction in transactions_data:
-        spent[transaction["category_id"]] = transaction["total"]
-
-    for budget in budgets_data:
-        spent_amount = spent.get(budget["category_id"], 0)
-        remaining_amount = budget["budget_amount"] - spent_amount
-        progress = spent_amount/budget["budget_amount"] * 100
-
-        budget_summary.append({
-            "id":budget["id"],
-            "name": budget["name"],
-            "budget_amount": budget["budget_amount"],
-            "spent": spent_amount,
-            "remaining": remaining_amount,
-            "progress": progress
-        })
+    budget_summary = get_budget_summary(user_id)
 
 
     return render_template("budgets.html", budget_data = budget_summary)
@@ -744,7 +694,7 @@ def edit_budget(budget_id):
         SELECT
             budgets.category_id,
             categories.name,
-            budgets.budget_amount,
+            budgets.budget_amount
         FROM budgets
         INNER JOIN categories
             ON budgets.category_id = categories.id
@@ -760,7 +710,7 @@ def edit_budget(budget_id):
         
         budgets = dict(budgets)
         
-        budgets["amount"] = Decimal(budgets["amount"]) / 100
+        budgets["budget_amount"] = Decimal(budgets["budget_amount"]) / 100
 
         cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
 

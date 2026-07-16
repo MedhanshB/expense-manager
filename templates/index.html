@@ -33,6 +33,25 @@ Dashboard
     </div>
 </div>
 
+<h3 class="mt-3">Budget Overview</h3>
+<div class="card-body">
+    {% for budget in budgets[:3] %}
+    <p>{{ budget['name'] }}</p>
+    <div class="progress">
+        <div class="progress-bar" role="progressbar" aria-valuenow="{{ budget['progress'] }}" aria-valuemin="0"
+            aria-valuemax="100" style="width: {{ budget['progress'] }}%;">
+            {{ budget["progress"] | round(0) }}%
+        </div>
+    </div>
+    <p>{{ budget["spent"] | inr }} / {{ budget["budget_amount"] | inr}}</p>
+    {% endfor %}
+</div>
+<a href="{{ url_for('budgets') }}" class="btn btn-primary mt-3">
+    View All Budgets
+</a>
+
+
+
 <h3 class="mt-3">Recent Transactions</h3>
 <table class="table">
     <tr>
@@ -48,9 +67,9 @@ Dashboard
         <td>{{ transaction['name'] }}</td>
         <td>{{ transaction['description'] }}</td>
         {% if transaction["type"] == "Income" %}
-            <td class="text-end">+{{ transaction['amount'] | inr }}</td>
+        <td class="text-end">+{{ transaction['amount'] | inr }}</td>
         {% elif transaction["type"] == "Expense" %}
-            <td class="text-end">-{{ transaction['amount'] | inr }}</td>
+        <td class="text-end">-{{ transaction['amount'] | inr }}</td>
         {% endif %}
     </tr>
     {% endfor %}
