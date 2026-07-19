@@ -1,13 +1,21 @@
 import sqlite3
-from flask import session, redirect
+from flask import session, redirect, current_app
 from functools import wraps
 from datetime import datetime
+import psycopg
+import os 
+from dotenv import load_dotenv
+from psycopg.rows import dict_row
+
+load_dotenv()
+
 
 def get_db():
-    conn = sqlite3.connect("expense_manager.db")
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return psycopg.connect(
+        os.getenv("DATABASE_URL"),
+        row_factory=dict_row
+    )
+
 
 def inr(amount):
     """Format a value stored in paise as Indian Rupees."""
@@ -29,10 +37,8 @@ def login_required(f):
 
     return decorated_function
 
-def short_date(date):
-    short = datetime.strptime(date, "%Y-%m-%d")
-    short_date = short.strftime("%d %b")
-    return short_date
+def short_date(value):
+    return value.strftime("%d %b")
 
 def get_budget_summary(user_id):
     db = get_db()
@@ -50,7 +56,7 @@ def get_budget_summary(user_id):
         FROM budgets
         INNER JOIN categories
             ON budgets.category_id = categories.id
-        WHERE budgets.user_id = ?
+        WHERE budgets.user_id = %s
         """,
         (user_id,))
     
@@ -64,7 +70,10 @@ def get_budget_summary(user_id):
         FROM transactions
         INNER JOIN categories
             ON transactions.category_id = categories.id
-        WHERE transactions.user_id = ? AND categories.type = ? AND strftime("%Y-%m", transactions.transaction_date = ?)
+        WHERE
+            transactions.user_id = %s
+            AND categories.type = %s
+            AND TO_CHAR(transactions.transaction_date, 'YYYY-MM') = %s
         GROUP BY categories.id
         """,
         (user_id, "Expense", current_month))

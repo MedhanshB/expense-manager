@@ -1,16 +1,14 @@
 from flask import Flask, render_template, request, session, flash, redirect, url_for
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
+from config import Config
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from helpers import get_db, login_required, inr, short_date, get_budget_summary
 
+
 app = Flask(__name__)
-
-app.config["SECRET_KEY"] = "development-key"   # replace later with an environment variable
-
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
+app.config.from_object(Config)
 
 MAX_TRANSACTION_AMOUNT = Decimal("10000000")
 
@@ -45,7 +43,7 @@ def index():
     # FROM transactions
     # INNER JOIN categories
     #     ON transactions.category_id = categories.id
-    # WHERE transactions.user_id = ?
+    # WHERE transactions.user_id = %s
     # """,
     # (user_id,)
     # )
@@ -59,8 +57,8 @@ def index():
     # INNER JOIN categories 
     #     ON transactions.category_id = categories.id
     # WHERE 
-    #     transactions.user_id = ? 
-    #     AND categories.type = ?
+    #     transactions.user_id = %s 
+    #     AND categories.type = %s
     # """,
     # (user_id,'Income')
     # )
@@ -75,8 +73,8 @@ def index():
     # INNER JOIN categories 
     #     ON transactions.category_id = categories.id
     # WHERE 
-    #     transactions.user_id = ? 
-    #     AND categories.type = ?
+    #     transactions.user_id = %s 
+    #     AND categories.type = %s
     # """,
     # (user_id,'Expense')
     # )
@@ -98,7 +96,7 @@ def index():
     INNER JOIN categories
         ON transactions.category_id = categories.id
     WHERE
-        transactions.user_id = ? 
+        transactions.user_id = %s 
     GROUP BY categories.type
     """,
     (user_id,)
@@ -129,7 +127,7 @@ def index():
     FROM transactions
     INNER JOIN categories
         ON transactions.category_id = categories.id
-    WHERE transactions.user_id = ?
+    WHERE transactions.user_id = %s
     ORDER BY transactions.transaction_date DESC, transactions.id DESC
     LIMIT 10
     """, (user_id,))
@@ -170,7 +168,7 @@ def register():
 
         db = get_db()
 
-        cursor_user = db.execute("SELECT username FROM users WHERE username=?", (username,))
+        cursor_user = db.execute("SELECT username FROM users WHERE username=%s", (username,))
         users = cursor_user.fetchone()
         if users:
             flash("Username already exists", "danger")
@@ -179,7 +177,7 @@ def register():
         
         hashPass = generate_password_hash(password)
 
-        db.execute("INSERT INTO users (username, password_hash) VALUES(?, ?)", (username, hashPass))
+        db.execute("INSERT INTO users (username, password_hash) VALUES(%s, %s)", (username, hashPass))
         db.commit()
 
         db.close()
@@ -196,7 +194,7 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     # no caching forget any user id 
-    session.clear()
+    # session.clear()
 
     if request.method == "POST":
         username = request.form.get("username")
@@ -210,7 +208,7 @@ def login():
 
         db = get_db()
 
-        cursor_user = db.execute("SELECT * FROM users WHERE username = ?", (username,))
+        cursor_user = db.execute("SELECT * FROM users WHERE username = %s", (username,))
 
         user = cursor_user.fetchone()
         if not user or not check_password_hash(user["password_hash"], password):
@@ -260,7 +258,7 @@ def transactions():
     FROM transactions
     INNER JOIN categories
         ON transactions.category_id = categories.id
-    WHERE transactions.user_id = ?
+    WHERE transactions.user_id = %s
     ORDER BY transactions.transaction_date DESC
     """, (user_id,))
 
@@ -340,7 +338,7 @@ def add_transaction():
             return render_template("add_transaction.html", categories = categories, today = today)
 
         db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
+        cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
         category_row = cursor.fetchone()
         if not category_row:
             db.close()
@@ -349,7 +347,7 @@ def add_transaction():
         
  
         
-        db.execute("INSERT INTO transactions (user_id, category_id,amount,description,transaction_date) VALUES(?, ?, ?, ?, ?)", 
+        db.execute("INSERT INTO transactions (user_id, category_id,amount,description,transaction_date) VALUES(%s, %s, %s, %s, %s)", 
                    (user_id, category, amount, description, transaction_date))
         
         db.commit()
@@ -424,7 +422,7 @@ def edit_transaction(transaction_id):
             return render_template("edit_transaction.html", categories = categories)
 
         db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
+        cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
         category_row = cursor.fetchone()
         if not category_row:
             db.close()
@@ -433,7 +431,7 @@ def edit_transaction(transaction_id):
         
  
         
-        cursor_2 = db.execute("UPDATE transactions SET category_id = ?, amount = ?, description = ?, transaction_date = ? WHERE transactions.id = ? AND transactions.user_id=?", 
+        cursor_2 = db.execute("UPDATE transactions SET category_id = %s, amount = %s, description = %s, transaction_date = %s WHERE transactions.id = %s AND transactions.user_id=%s", 
                    (category, amount, description, transaction_date, transaction_id, user_id))
         
         if cursor_2.rowcount == 0:
@@ -465,7 +463,7 @@ def edit_transaction(transaction_id):
         FROM transactions
         INNER JOIN categories
             ON transactions.category_id = categories.id
-        WHERE transactions.id = ? AND transactions.user_id = ?
+        WHERE transactions.id = %s AND transactions.user_id = %s
         """, (transaction_id, user_id))
 
         transaction = cursor.fetchone()
@@ -496,7 +494,7 @@ def delete_transaction(transaction_id):
     db = get_db()
 
     cursor = db.execute(
-        "DELETE FROM transactions WHERE transactions.user_id = ? AND transactions.id = ?",
+        "DELETE FROM transactions WHERE transactions.user_id = %s AND transactions.id = %s",
         (user_id, transaction_id))
 
     if cursor.rowcount == 0:
@@ -539,7 +537,7 @@ def add_budget():
 
     db = get_db()
 
-    cursor = db.execute("SELECT id,name FROM categories WHERE type = ? ORDER BY name", ("Expense",))
+    cursor = db.execute("SELECT id,name FROM categories WHERE type = %s ORDER BY name", ("Expense",))
 
     categories = cursor.fetchall()
 
@@ -585,7 +583,7 @@ def add_budget():
             return render_template("add_budget.html", categories = categories)
 
         db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=? and type = ?",(category,"Expense"))
+        cursor = db.execute("SELECT id FROM categories WHERE id=%s and type = %s",(category,"Expense"))
         category_row = cursor.fetchone()
         if not category_row:
             db.close()
@@ -595,7 +593,7 @@ def add_budget():
         
         cursor = db.execute(
             """
-            INSERT INTO budgets (user_id, category_id, budget_amount, budget_period) VALUES (?, ?, ?, ?)
+            INSERT INTO budgets (user_id, category_id, budget_amount, budget_period) VALUES (%s, %s, %s, %s)
             """,
             (user_id, category, budget, budget_period)
         )
@@ -659,7 +657,7 @@ def edit_budget(budget_id):
             return render_template("edit_budget.html", categories = categories)
 
         db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=?",(category,))
+        cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
         category_row = cursor.fetchone()
         if not category_row:
             db.close()
@@ -668,7 +666,7 @@ def edit_budget(budget_id):
         
  
         
-        cursor_2 = db.execute("UPDATE budgets SET category_id = ?, budget_amount = ? WHERE budget.id = ? AND budget.user_id=?", 
+        cursor_2 = db.execute("UPDATE budgets SET category_id = %s, budget_amount = %s WHERE budgets.id = %s AND budgets.user_id=%s", 
                    (category, budget, budget_id, user_id))
         
         if cursor_2.rowcount == 0:
@@ -698,7 +696,7 @@ def edit_budget(budget_id):
         FROM budgets
         INNER JOIN categories
             ON budgets.category_id = categories.id
-        WHERE budgets.id = ? AND budgets.user_id = ?
+        WHERE budgets.id = %s AND budgets.user_id = %s
         """, (budget_id, user_id))
 
         budgets = cursor.fetchone()
@@ -729,7 +727,7 @@ def delete_budget(budget_id):
     db = get_db()
 
     cursor = db.execute(
-        "DELETE FROM budgets WHERE budgets.user_id = ? AND budgets.id = ?",
+        "DELETE FROM budgets WHERE budgets.user_id = %s AND budgets.id = %s",
         (user_id, budget_id))
 
     if cursor.rowcount == 0:

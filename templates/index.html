@@ -38,13 +38,21 @@ Dashboard
     {% for budget in budgets[:3] %}
     <p>{{ budget['name'] }}</p>
     <div class="progress">
-        <div class="progress-bar" role="progressbar" aria-valuenow="{{ budget['progress'] }}" aria-valuemin="0"
-            aria-valuemax="100" style="width: {{ budget['progress'] }}%;">
+        {% if budget['progress'] < 75 %} 
+            {% set color="bg-success" %} 
+        {% elif budget['progress'] < 100 %} 
+            {% set color="bg-warning" %} 
+        {% else %} 
+            {% set color="bg-danger" %} 
+        {% endif %} 
+    <div class="progress-bar {{ color }}" 
+            role="progressbar" aria-valuenow="{{ budget['progress'] }}" aria-valuemin="0" aria-valuemax="100"
+            style="width: {{ budget['progress'] }}%;">
             {{ budget["progress"] | round(0) }}%
-        </div>
     </div>
-    <p>{{ budget["spent"] | inr }} / {{ budget["budget_amount"] | inr}}</p>
-    {% endfor %}
+</div>
+<p>{{ budget["spent"] | inr }} / {{ budget["budget_amount"] | inr}}</p>
+{% endfor %}
 </div>
 <a href="{{ url_for('budgets') }}" class="btn btn-primary mt-3">
     View All Budgets
