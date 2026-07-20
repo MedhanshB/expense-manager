@@ -33,8 +33,6 @@ def index():
 
     user_id = session["user_id"]
 
-    db = get_db()
-
     # cursor = db.execute(
     # """
     # SELECT
@@ -88,57 +86,58 @@ def index():
     #     else:
     #         user_expense += transaction["amount"]
 
-    cursor = db.execute(
-    """
-    SELECT categories.type,
-        SUM(transactions.amount) AS total
-    FROM transactions
-    INNER JOIN categories
-        ON transactions.category_id = categories.id
-    WHERE
-        transactions.user_id = %s 
-    GROUP BY categories.type
-    """,
-    (user_id,)
-    )
+    with get_db() as db:
+        cursor = db.execute(
+        """
+        SELECT categories.type,
+            SUM(transactions.amount) AS total
+        FROM transactions
+        INNER JOIN categories
+            ON transactions.category_id = categories.id
+        WHERE
+            transactions.user_id = %s 
+        GROUP BY categories.type
+        """,
+        (user_id,)
+        )
 
-    balance = cursor.fetchall()
+        balance = cursor.fetchall()
 
-    user_income = 0
-    user_expense = 0
+        user_income = 0
+        user_expense = 0
 
-    for balances in balance:
-        if balances["type"] == "Income":
-            user_income = balances["total"]
-        elif balances["type"] == "Expense":
-            user_expense = balances["total"]
+        for balances in balance:
+            if balances["type"] == "Income":
+                user_income = balances["total"]
+            elif balances["type"] == "Expense":
+                user_expense = balances["total"]
 
-    user_balance = user_income - user_expense
+        user_balance = user_income - user_expense
 
-    cursor = db.execute(
-    """
-    SELECT
-        transactions.id,
-        categories.name,
-        categories.type,
-        transactions.amount,
-        transactions.description,
-        transactions.transaction_date
-    FROM transactions
-    INNER JOIN categories
-        ON transactions.category_id = categories.id
-    WHERE transactions.user_id = %s
-    ORDER BY transactions.transaction_date DESC, transactions.id DESC
-    LIMIT 10
-    """, (user_id,))
+        cursor = db.execute(
+        """
+        SELECT
+            transactions.id,
+            categories.name,
+            categories.type,
+            transactions.amount,
+            transactions.description,
+            transactions.transaction_date
+        FROM transactions
+        INNER JOIN categories
+            ON transactions.category_id = categories.id
+        WHERE transactions.user_id = %s
+        ORDER BY transactions.transaction_date DESC, transactions.id DESC
+        LIMIT 10
+        """, (user_id,))
 
-    transactions = cursor.fetchall()
+        transactions = cursor.fetchall()
 
-    budget_summary = get_budget_summary(user_id)
+        budget_summary = get_budget_summary(user_id)
 
 
-    return render_template("index.html", balance = user_balance, income = user_income, expense = user_expense, 
-                           transactions = transactions, budgets = budget_summary)
+        return render_template("index.html", balance = user_balance, income = user_income, expense = user_expense, 
+                            transactions = transactions, budgets = budget_summary)
 
     
 
@@ -166,25 +165,26 @@ def register():
             return redirect(url_for("register"))
 
 
-        db = get_db()
+        # db = get_db()
 
-        cursor_user = db.execute("SELECT username FROM users WHERE username=%s", (username,))
-        users = cursor_user.fetchone()
-        if users:
-            flash("Username already exists", "danger")
-            db.close()
-            return redirect(url_for("register"))
+        with get_db() as db:
+
+            cursor_user = db.execute("SELECT username FROM users WHERE username=%s", (username,))
+            users = cursor_user.fetchone()
+            if users:
+                flash("Username already exists", "danger")
+                return redirect(url_for("register"))
         
-        hashPass = generate_password_hash(password)
+            hashPass = generate_password_hash(password)
 
-        db.execute("INSERT INTO users (username, password_hash) VALUES(%s, %s)", (username, hashPass))
-        db.commit()
+            db.execute("INSERT INTO users (username, password_hash) VALUES(%s, %s)", (username, hashPass))
+            db.commit()
 
-        db.close()
+            # db.close()
 
-        flash("Registration successful! Please log in.", "success")
+            flash("Registration successful! Please log in.", "success")
 
-        return redirect(url_for("login"))
+            return redirect(url_for("login"))
     
 
     else:
@@ -193,8 +193,6 @@ def register():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    # no caching forget any user id 
-    # session.clear()
 
     if request.method == "POST":
         username = request.form.get("username")
@@ -206,22 +204,24 @@ def login():
             flash("must provide password","danger")
             return redirect(url_for("login"))
 
-        db = get_db()
+        # db = get_db()
 
-        cursor_user = db.execute("SELECT * FROM users WHERE username = %s", (username,))
+        with get_db() as db:
 
-        user = cursor_user.fetchone()
-        if not user or not check_password_hash(user["password_hash"], password):
-            flash("Invalid username or password","danger")
-            return redirect(url_for("login"))
+            cursor_user = db.execute("SELECT * FROM users WHERE username = %s", (username,))
 
-        session["user_id"] = user["id"]
-        session["username"] = user["username"]
+            user = cursor_user.fetchone()
+            if not user or not check_password_hash(user["password_hash"], password):
+                flash("Invalid username or password","danger")
+                return redirect(url_for("login"))
 
-        db.close()
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
 
-        flash("Welcome back!", "success")
-        return redirect(url_for("index"))
+            # db.close()
+
+            flash("Welcome back!", "success")
+            return redirect(url_for("index"))
         
     
     else:
@@ -247,23 +247,24 @@ def transactions():
 
     db = get_db()
 
-    cursor = db.execute(
-    """
-    SELECT
-        transactions.id,
-        categories.name,
-        transactions.amount,
-        transactions.description,
-        transactions.transaction_date
-    FROM transactions
-    INNER JOIN categories
-        ON transactions.category_id = categories.id
-    WHERE transactions.user_id = %s
-    ORDER BY transactions.transaction_date DESC
-    """, (user_id,))
+    with get_db() as db:
 
-    transactions_data = cursor.fetchall()
+        cursor = db.execute(
+        """
+        SELECT
+            transactions.id,
+            categories.name,
+            transactions.amount,
+            transactions.description,
+            transactions.transaction_date
+        FROM transactions
+        INNER JOIN categories
+            ON transactions.category_id = categories.id
+        WHERE transactions.user_id = %s
+        ORDER BY transactions.transaction_date DESC
+        """, (user_id,))
 
+        transactions_data = cursor.fetchall()
 
 
     return render_template("transactions.html", transactions_data = transactions_data)
@@ -275,13 +276,11 @@ def add_transaction():
 
     user_id = session["user_id"]
 
-    db = get_db()
+    with get_db() as db:
 
-    cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
+        cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
 
-    categories = cursor.fetchall()
-
-    db.close()
+        categories = cursor.fetchall()
 
     today = date.today().isoformat()
 
@@ -338,26 +337,25 @@ def add_transaction():
             return render_template("add_transaction.html", categories = categories, today = today)
 
         db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
-        category_row = cursor.fetchone()
-        if not category_row:
-            db.close()
-            flash("Not a valid category","info")
-            return render_template("add_transaction.html", categories = categories, today = today)
+
+        with get_db() as db:
+            cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
+            category_row = cursor.fetchone()
+            if not category_row:
+                db.close()
+                flash("Not a valid category","info")
+                return render_template("add_transaction.html", categories = categories, today = today)
         
  
         
-        db.execute("INSERT INTO transactions (user_id, category_id,amount,description,transaction_date) VALUES(%s, %s, %s, %s, %s)", 
-                   (user_id, category, amount, description, transaction_date))
-        
-        db.commit()
+            db.execute("INSERT INTO transactions (user_id, category_id,amount,description,transaction_date) VALUES(%s, %s, %s, %s, %s)", 
+                    (user_id, category, amount, description, transaction_date))
+            
+            db.commit()
 
-        db.close()
-
-        flash("Transaction saved successfully","success")
-        
-        return redirect(url_for("transactions"))
-
+            flash("Transaction saved successfully","success")
+            
+            return redirect(url_for("transactions"))
 
     else:
 
@@ -421,69 +419,62 @@ def edit_transaction(transaction_id):
             flash("Invalid category","danger")
             return render_template("edit_transaction.html", categories = categories)
 
-        db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
-        category_row = cursor.fetchone()
-        if not category_row:
-            db.close()
-            flash("Not a valid category","info")
-            return render_template("edit_transaction.html", categories = categories)
+        with get_db() as db:
+            cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
+            category_row = cursor.fetchone()
+            if not category_row:
+                flash("Not a valid category","info")
+                return render_template("edit_transaction.html", categories = categories)
+            
+    
+            
+            cursor_2 = db.execute("UPDATE transactions SET category_id = %s, amount = %s, description = %s, transaction_date = %s WHERE transactions.id = %s AND transactions.user_id=%s", 
+                    (category, amount, description, transaction_date, transaction_id, user_id))
+            
+            if cursor_2.rowcount == 0:
+                db.rollback()
+                flash("Transaction not found.", "danger")
+                return redirect(url_for("transactions"))
         
- 
-        
-        cursor_2 = db.execute("UPDATE transactions SET category_id = %s, amount = %s, description = %s, transaction_date = %s WHERE transactions.id = %s AND transactions.user_id=%s", 
-                   (category, amount, description, transaction_date, transaction_id, user_id))
-        
-        if cursor_2.rowcount == 0:
-            db.rollback()
-            db.close()
-            flash("Transaction not found.", "danger")
+            db.commit()
+
+            flash("Transaction updated","success")
+            
             return redirect(url_for("transactions"))
-        
-        db.commit()
-
-        db.close()
-
-        flash("Transaction updated","success")
-        
-        return redirect(url_for("transactions"))
     
     else:
         
-        db = get_db()
+        with get_db() as db:
 
-        cursor = db.execute(
-        """
-        SELECT
-            transactions.category_id,
-            categories.name,
-            transactions.amount,
-            transactions.description,
-            transactions.transaction_date
-        FROM transactions
-        INNER JOIN categories
-            ON transactions.category_id = categories.id
-        WHERE transactions.id = %s AND transactions.user_id = %s
-        """, (transaction_id, user_id))
+            cursor = db.execute(
+            """
+            SELECT
+                transactions.category_id,
+                categories.name,
+                transactions.amount,
+                transactions.description,
+                transactions.transaction_date
+            FROM transactions
+            INNER JOIN categories
+                ON transactions.category_id = categories.id
+            WHERE transactions.id = %s AND transactions.user_id = %s
+            """, (transaction_id, user_id))
 
-        transaction = cursor.fetchone()
-        
-        if not transaction:
-            db.close()
-            flash("No transaction exists","danger")
-            return redirect(url_for("transactions"))
-        
-        transaction = dict(transaction)
-        
-        transaction["amount"] = Decimal(transaction["amount"]) / 100
+            transaction = cursor.fetchone()
+            
+            if not transaction:
+                flash("No transaction exists","danger")
+                return redirect(url_for("transactions"))
+            
+            transaction = dict(transaction)
+            
+            transaction["amount"] = Decimal(transaction["amount"]) / 100
 
-        cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
+            cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
 
-        categories = cursor.fetchall()
+            categories = cursor.fetchall()
 
-        db.close()
-
-        return render_template("edit_transaction.html", transaction = transaction, categories = categories)
+            return render_template("edit_transaction.html", transaction = transaction, categories = categories)
     
 
 @app.route("/transactions/<int:transaction_id>/delete", methods=["POST"])
@@ -491,24 +482,22 @@ def edit_transaction(transaction_id):
 def delete_transaction(transaction_id):
     user_id = session["user_id"]
 
-    db = get_db()
+    with get_db() as db:
 
-    cursor = db.execute(
-        "DELETE FROM transactions WHERE transactions.user_id = %s AND transactions.id = %s",
-        (user_id, transaction_id))
+        cursor = db.execute(
+            "DELETE FROM transactions WHERE transactions.user_id = %s AND transactions.id = %s",
+            (user_id, transaction_id))
 
-    if cursor.rowcount == 0:
-            db.rollback()
-            db.close()
-            flash("Transaction not found.", "danger")
-            return redirect(url_for("transactions"))
+        if cursor.rowcount == 0:
+                db.rollback()
+                flash("Transaction not found.", "danger")
+                return redirect(url_for("transactions"))
 
-    db.commit()
+        db.commit()
 
-    db.close()
 
-    flash("Transaction deleted successfully.","success")
-    return redirect(url_for("transactions"))
+        flash("Transaction deleted successfully.","success")
+        return redirect(url_for("transactions"))
 
 
 @app.route("/budgets")
@@ -516,10 +505,7 @@ def delete_transaction(transaction_id):
 def budgets():
     user_id = session["user_id"]
 
-    db = get_db()
-
     budget_summary = get_budget_summary(user_id)
-
 
     return render_template("budgets.html", budget_data = budget_summary)
 
@@ -535,13 +521,10 @@ def add_budget():
 
     budget_period = datetime.now().strftime("%Y-%m")
 
-    db = get_db()
+    with get_db() as db:
+        cursor = db.execute("SELECT id,name FROM categories WHERE type = %s ORDER BY name", ("Expense",))
 
-    cursor = db.execute("SELECT id,name FROM categories WHERE type = %s ORDER BY name", ("Expense",))
-
-    categories = cursor.fetchall()
-
-    db.close()
+        categories = cursor.fetchall()
 
     if request.method == "POST":
         category = request.form.get("category")
@@ -583,26 +566,25 @@ def add_budget():
             return render_template("add_budget.html", categories = categories)
 
         db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=%s and type = %s",(category,"Expense"))
-        category_row = cursor.fetchone()
-        if not category_row:
-            db.close()
-            flash("Not a valid category","info")
-            return render_template("add_budget.html", categories = categories)
+        with get_db() as db:
+            cursor = db.execute("SELECT id FROM categories WHERE id=%s and type = %s",(category,"Expense"))
+            category_row = cursor.fetchone()
+            if not category_row:
+                db.close()
+                flash("Not a valid category","info")
+                return render_template("add_budget.html", categories = categories)
 
-        
-        cursor = db.execute(
-            """
-            INSERT INTO budgets (user_id, category_id, budget_amount, budget_period) VALUES (%s, %s, %s, %s)
-            """,
-            (user_id, category, budget, budget_period)
-        )
+            
+            cursor = db.execute(
+                """
+                INSERT INTO budgets (user_id, category_id, budget_amount, budget_period) VALUES (%s, %s, %s, %s)
+                """,
+                (user_id, category, budget, budget_period)
+            )
 
-        db.commit()
-
-        db.close()
-         
-        return redirect(url_for("budgets"))
+            db.commit()
+            
+            return redirect(url_for("budgets"))
         
 
     else:
@@ -656,67 +638,60 @@ def edit_budget(budget_id):
             flash("Invalid category","danger")
             return render_template("edit_budget.html", categories = categories)
 
-        db = get_db()
-        cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
-        category_row = cursor.fetchone()
-        if not category_row:
-            db.close()
-            flash("Not a valid category","info")
-            return render_template("edit_budget.html", categories = categories)
+        with get_db() as db:
+            cursor = db.execute("SELECT id FROM categories WHERE id=%s",(category,))
+            category_row = cursor.fetchone()
+            if not category_row:
+                flash("Not a valid category","info")
+                return render_template("edit_budget.html", categories = categories)
         
  
         
-        cursor_2 = db.execute("UPDATE budgets SET category_id = %s, budget_amount = %s WHERE budgets.id = %s AND budgets.user_id=%s", 
-                   (category, budget, budget_id, user_id))
-        
-        if cursor_2.rowcount == 0:
-            db.rollback()
-            db.close()
-            flash("Budget not found.", "danger")
+            cursor_2 = db.execute("UPDATE budgets SET category_id = %s, budget_amount = %s WHERE budgets.id = %s AND budgets.user_id=%s", 
+                    (category, budget, budget_id, user_id))
+            
+            if cursor_2.rowcount == 0:
+                db.rollback()
+                flash("Budget not found.", "danger")
+                return redirect(url_for("budgets"))
+            
+            db.commit()
+
+            flash("Budget updated","success")
+            
             return redirect(url_for("budgets"))
-        
-        db.commit()
-
-        db.close()
-
-        flash("Budget updated","success")
-        
-        return redirect(url_for("budgets"))
     
     else:
         
-        db = get_db()
+        with get_db() as db:
 
-        cursor = db.execute(
-        """
-        SELECT
-            budgets.category_id,
-            categories.name,
-            budgets.budget_amount
-        FROM budgets
-        INNER JOIN categories
-            ON budgets.category_id = categories.id
-        WHERE budgets.id = %s AND budgets.user_id = %s
-        """, (budget_id, user_id))
+            cursor = db.execute(
+            """
+            SELECT
+                budgets.category_id,
+                categories.name,
+                budgets.budget_amount
+            FROM budgets
+            INNER JOIN categories
+                ON budgets.category_id = categories.id
+            WHERE budgets.id = %s AND budgets.user_id = %s
+            """, (budget_id, user_id))
 
-        budgets = cursor.fetchone()
-        
-        if not budgets:
-            db.close()
-            flash("No budget exists","danger")
-            return redirect(url_for("budgets"))
-        
-        budgets = dict(budgets)
-        
-        budgets["budget_amount"] = Decimal(budgets["budget_amount"]) / 100
+            budgets = cursor.fetchone()
+            
+            if not budgets:
+                flash("No budget exists","danger")
+                return redirect(url_for("budgets"))
+            
+            budgets = dict(budgets)
+            
+            budgets["budget_amount"] = Decimal(budgets["budget_amount"]) / 100
 
-        cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
+            cursor = db.execute("SELECT id,name FROM categories ORDER BY name")
 
-        categories = cursor.fetchall()
+            categories = cursor.fetchall()
 
-        db.close()
-
-        return render_template("edit_budget.html", budgets = budgets, categories = categories)
+            return render_template("edit_budget.html", budgets = budgets, categories = categories)
 
 
 @app.route("/budgets/<int:budget_id>/delete", methods=["POST"])
@@ -724,21 +699,18 @@ def edit_budget(budget_id):
 def delete_budget(budget_id):
     user_id = session["user_id"]
 
-    db = get_db()
+    with get_db() as db:
 
-    cursor = db.execute(
-        "DELETE FROM budgets WHERE budgets.user_id = %s AND budgets.id = %s",
-        (user_id, budget_id))
+        cursor = db.execute(
+            "DELETE FROM budgets WHERE budgets.user_id = %s AND budgets.id = %s",
+            (user_id, budget_id))
 
-    if cursor.rowcount == 0:
-            db.rollback()
-            db.close()
-            flash("Budget not found.", "danger")
-            return redirect(url_for("budgets"))
+        if cursor.rowcount == 0:
+                db.rollback()
+                flash("Budget not found.", "danger")
+                return redirect(url_for("budgets"))
 
-    db.commit()
+        db.commit()
 
-    db.close()
-
-    flash("Budget deleted successfully.","success")
-    return redirect(url_for("budgets"))
+        flash("Budget deleted successfully.","success")
+        return redirect(url_for("budgets"))

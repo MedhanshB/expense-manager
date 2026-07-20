@@ -41,44 +41,44 @@ def short_date(value):
     return value.strftime("%d %b")
 
 def get_budget_summary(user_id):
-    db = get_db()
+    with get_db() as db:
 
-    current_month = datetime.now().strftime("%Y-%m")
+        current_month = datetime.now().strftime("%Y-%m")
 
-    cursor = db.execute(
-        """
-        SELECT
-            budgets.id,
-            budgets.category_id,
-            budgets.budget_amount,
-            budgets.budget_period,
-            categories.name
-        FROM budgets
-        INNER JOIN categories
-            ON budgets.category_id = categories.id
-        WHERE budgets.user_id = %s
-        """,
-        (user_id,))
-    
-    budgets_data = cursor.fetchall()
+        cursor = db.execute(
+            """
+            SELECT
+                budgets.id,
+                budgets.category_id,
+                budgets.budget_amount,
+                budgets.budget_period,
+                categories.name
+            FROM budgets
+            INNER JOIN categories
+                ON budgets.category_id = categories.id
+            WHERE budgets.user_id = %s
+            """,
+            (user_id,))
+        
+        budgets_data = cursor.fetchall()
 
-    cursor = db.execute(
-        """
-        SELECT 
-            categories.id AS category_id,
-        SUM (transactions.amount) AS total
-        FROM transactions
-        INNER JOIN categories
-            ON transactions.category_id = categories.id
-        WHERE
-            transactions.user_id = %s
-            AND categories.type = %s
-            AND TO_CHAR(transactions.transaction_date, 'YYYY-MM') = %s
-        GROUP BY categories.id
-        """,
-        (user_id, "Expense", current_month))
-    
-    transactions_data = cursor.fetchall()
+        cursor = db.execute(
+            """
+            SELECT 
+                categories.id AS category_id,
+            SUM (transactions.amount) AS total
+            FROM transactions
+            INNER JOIN categories
+                ON transactions.category_id = categories.id
+            WHERE
+                transactions.user_id = %s
+                AND categories.type = %s
+                AND TO_CHAR(transactions.transaction_date, 'YYYY-MM') = %s
+            GROUP BY categories.id
+            """,
+            (user_id, "Expense", current_month))
+        
+        transactions_data = cursor.fetchall()
 
     spent = {}
 
