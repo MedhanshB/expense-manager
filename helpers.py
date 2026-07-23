@@ -1,7 +1,7 @@
 import sqlite3
 from flask import session, redirect, current_app
 from functools import wraps
-from datetime import datetime
+from datetime import date
 import psycopg
 import os 
 from dotenv import load_dotenv
@@ -40,10 +40,24 @@ def login_required(f):
 def short_date(value):
     return value.strftime("%d %b")
 
-def get_budget_summary(user_id):
-    with get_db() as db:
+def month_range(year, month):
+    start = date(year, month, 1)
+    if month == 12:
+        end = date(year + 1, 1, 1)
+    else:
+        end = date(year, month + 1, 1)
 
-        current_month = datetime.now().strftime("%Y-%m")
+    return start, end
+    
+
+def current_month_range():
+    today = date.today()
+    return month_range(today.year, today.month)
+
+
+def get_budget_summary(user_id, year, month):
+    start, end = month_range(year, month)
+    with get_db() as db:
 
         cursor = db.execute(
             """
@@ -51,7 +65,6 @@ def get_budget_summary(user_id):
                 budgets.id,
                 budgets.category_id,
                 budgets.budget_amount,
-                budgets.budget_period,
                 categories.name
             FROM budgets
             INNER JOIN categories
@@ -73,10 +86,11 @@ def get_budget_summary(user_id):
             WHERE
                 transactions.user_id = %s
                 AND categories.type = %s
-                AND TO_CHAR(transactions.transaction_date, 'YYYY-MM') = %s
+                AND transactions.transaction_date >= %s
+                AND transactions.transaction_date < %s
             GROUP BY categories.id
             """,
-            (user_id, "Expense", current_month))
+            (user_id, "Expense", start, end))
         
         transactions_data = cursor.fetchall()
 
@@ -94,6 +108,8 @@ def get_budget_summary(user_id):
             progress = spent_amount / budget["budget_amount"] * 100
         else:
             progress = 0
+        
+        progress = round(progress, 1)
 
         budget_summary.append({
             "id":budget["id"],
@@ -105,3 +121,65 @@ def get_budget_summary(user_id):
         })
 
     return budget_summary
+
+def monthly_report(user_id, year, month):
+    
+    with get_db() as db:
+        start,end = month_range(year, month)
+
+        cursor = db.execute(
+            """
+                SELECT categories.id as categories_id, categories.name,
+                SUM (transactions.amount) as total
+                FROM transactions  
+                INNER JOIN categories
+                    ON transactions.category_id = categories.id
+                WHERE
+                    transactions.user_id = %s
+                    AND categories.type = %s
+                    AND transactions.transaction_date >= %s
+                    AND transactions.transaction_date < %s
+                GROUP BY categories.id, categories.name
+                ORDER BY total DESC;
+                """,
+                (user_id, "Expense", start, end))
+        
+        expenses = cursor.fetchall()
+
+        cursor = db.execute(
+            """
+                SELECT categories.id as categories_id, categories.name,
+                SUM (transactions.amount) as total
+                FROM transactions  
+                INNER JOIN categories
+                    ON transactions.category_id = categories.id
+                WHERE
+                    transactions.user_id = %s
+                    AND categories.type = %s
+                    AND transactions.transaction_date >= %s
+                    AND transactions.transaction_date < %s
+                GROUP BY categories.id, categories.name
+                ORDER BY total DESC;
+                """,
+                (user_id, "Income", start, end))
+        
+        income = cursor.fetchall()
+
+        budget = get_budget_summary(user_id, year, month)
+
+        total_expenses = sum(row["total"] for row in expenses)
+
+        total_income = sum(row["total"] for row in income)
+
+        net_income = total_income - total_expenses
+
+        report = {
+            "expenses": expenses,
+            "income": income,
+            "budgets": budget,
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "net_income": net_income
+        }
+
+        return report

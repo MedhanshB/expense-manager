@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}
+Monthly Reports
+{% endblock %}
+
+{% block content %}
+<div class="form-card">
+    <h2>Monthly Report</h2>
+    <form method="get">
+        <!-- improve on this later on as the app comes to a finish so you can display income and expense in a separte optselect something -->
+        <input type="month" name="month" class="form-control" required>
+
+        <button type="submit" class="btn btn-primary mt-3">Get Report</button>
+    </form>
+</div>
+
+{% if report %}
+
+<div class="row row-cols-1 row-cols-md-3 g-4 mt-4">
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Income</h5>
+                <p class="card-text fs-3">{{ report.total_income | inr }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Expense</h5>
+                <p class="card-text fs-3">{{ report.total_expenses | inr }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Net Income</h5>
+                <p class="card-text fs-3">{{ report.net_income | inr }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Income by Category</h5>
+    </div>
+
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Cateogry</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for income in report.income %}
+                <tr>
+                    <td>{{ income['name'] }}</td>
+                    <td class="text-end text-success">+{{ income['total'] | inr }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Expenses by Category</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Cateogry</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for expense in report.expenses %}
+                <tr>
+                    <td>{{ expense['name'] }}</td>
+                    <td class="text-end text-danger">+{{ expense['total'] | inr }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Budget Performance</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th class="text-end">Monthly Budget</th>
+                    <th class="text-end">Spent</th>
+                    <th class="text-end">Remaining</th>
+                    <th class="text-end">Progress</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for budget in report.budgets %}
+                <tr>
+                    <td>{{ budget["name"]}}</td>
+                    <td class="text-end">{{ budget["budget_amount"] | inr }}</td>
+                    <td class="text-end">{{ budget["spent"] | inr }}</td>
+                    <td class="text-end">{{ budget["remaining"] | inr }}</td>
+                    <td class="text-end">{{ budget["progress"] }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+
+
+{% endblock %}

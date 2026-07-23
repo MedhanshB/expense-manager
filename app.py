@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from config import Config
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from helpers import get_db, login_required, inr, short_date, get_budget_summary
+from helpers import get_db, login_required, inr, short_date, get_budget_summary, monthly_report, current_month_range
 
 
 app = Flask(__name__)
@@ -133,7 +133,9 @@ def index():
 
         transactions = cursor.fetchall()
 
-        budget_summary = get_budget_summary(user_id)
+        today = date.today()
+
+        budget_summary = get_budget_summary(user_id, today.year, today.month)
 
 
         return render_template("index.html", balance = user_balance, income = user_income, expense = user_expense, 
@@ -505,7 +507,9 @@ def delete_transaction(transaction_id):
 def budgets():
     user_id = session["user_id"]
 
-    budget_summary = get_budget_summary(user_id)
+    today = date.today()
+
+    budget_summary = get_budget_summary(user_id, today.year, today.month)
 
     return render_template("budgets.html", budget_data = budget_summary)
 
@@ -518,8 +522,6 @@ def budgets():
 def add_budget():
 
     user_id = session["user_id"]
-
-    budget_period = datetime.now().strftime("%Y-%m")
 
     with get_db() as db:
         cursor = db.execute("SELECT id,name FROM categories WHERE type = %s ORDER BY name", ("Expense",))
@@ -577,9 +579,9 @@ def add_budget():
             
             cursor = db.execute(
                 """
-                INSERT INTO budgets (user_id, category_id, budget_amount, budget_period) VALUES (%s, %s, %s, %s)
+                INSERT INTO budgets (user_id, category_id, budget_amount) VALUES (%s, %s, %s)
                 """,
-                (user_id, category, budget, budget_period)
+                (user_id, category, budget)
             )
 
             db.commit()
@@ -714,3 +716,22 @@ def delete_budget(budget_id):
 
         flash("Budget deleted successfully.","success")
         return redirect(url_for("budgets"))
+    
+
+@app.route("/monthly_reports")
+@login_required
+def monthly_reports():
+    form_month = request.args.get("month")
+    if not form_month:
+        return render_template("monthly_reports.html", report = None)
+    
+    month_year = datetime.strptime(form_month, "%Y-%m")
+
+    year = month_year.year
+    month = month_year.month
+
+    user_id = session["user_id"]
+
+    report = monthly_report(user_id, year, month)
+
+    return render_template("monthly_reports.html", report = report)
